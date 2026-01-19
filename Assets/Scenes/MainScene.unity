@@ -1228,9 +1228,16 @@ MonoBehaviour:
   - {fileID: 7030668630161020708, guid: d119000efc0dbb94997a6b91a055969c, type: 3}
   - {fileID: 1351802056520272366, guid: 4b8d9debd3f7b82489451f020de5376b, type: 3}
   - {fileID: 72171927903334542, guid: f124e28e1e4cd8b40bd2f298195c324c, type: 3}
+  - {fileID: 7030668630161020708, guid: 506045cb0d66dea4e988d45535d8f96c, type: 3}
+  - {fileID: 1351802056520272366, guid: 56d2c4427cbaca444bd22e080387fdc5, type: 3}
   hardChunks:
   - {fileID: 6729394791121435023, guid: 40bc51096af2a1f4fad253eb44a7c6fa, type: 3}
   - {fileID: 7030668630161020708, guid: d119000efc0dbb94997a6b91a055969c, type: 3}
+  - {fileID: 6729394791121435023, guid: 7004448d7361028498da14293f4a1e88, type: 3}
+  - {fileID: 7030668630161020708, guid: 506045cb0d66dea4e988d45535d8f96c, type: 3}
+  - {fileID: 1351802056520272366, guid: 56d2c4427cbaca444bd22e080387fdc5, type: 3}
+  - {fileID: 6729394791121435023, guid: 7ead86bbb1d70ac4aabe16c76c9254b7, type: 3}
+  - {fileID: 1351802056520272366, guid: aca1120c958aa0b43bb2c47d2f6e4bdb, type: 3}
   chunkLength: 25
   startSpawnX: 0
   chunkOriginY: -2
@@ -1256,7 +1263,7 @@ MonoBehaviour:
   spawnEveryDistance: 35
   spawnAheadX: 35
   minY: 0
-  maxY: 7
+  maxY: 9
   movingTrapPrefab: {fileID: 1597891594082215101, guid: 7f2da622b8d55fe46a3260bc01ef8ba6, type: 3}
   trapMoveSpeed: 6
 --- !u!1 &1244900902
