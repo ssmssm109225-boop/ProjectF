@@ -1,17 +1,24 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class Trap : TriggerObjectBase
 {
     [Header("Trap")]
-    [SerializeField] private bool freezePlayerOnHit = true; // true¸é rb.simulated=false±îÁö
+    [SerializeField] private bool freezePlayerOnHit = true;
 
     protected override void OnHitGreen(PlayerController player)
     {
-        // 1) ÇÃ·¹ÀÌ¾î Á¤Áö
+        // ì¤‘ë³µ ì¶©ëŒ ë°©ì§€: ì´ë¯¸ GameOver ìƒíƒœë©´ ë¬´ì‹œ
+        if (GameFlowManager.Instance != null && 
+            GameFlowManager.Instance.CurrentState == GameFlowManager.GameState.GameOver)
+        {
+            Debug.Log("[Trap] Already in GameOver state, ignoring collision");
+            return;
+        }
+
+        // 1) í”Œë ˆì´ì–´ ë™ê²°
         if (freezePlayerOnHit)
         {
             player.Freeze();
-            // ¼±ÅÃ: ¿ÏÀü Á¤Áö(¹°¸® OFF)
             var rb = player.GetComponent<Rigidbody2D>();
             if (rb != null) rb.simulated = false;
         }
@@ -20,10 +27,16 @@ public class Trap : TriggerObjectBase
             player.Freeze();
         }
 
-        // 2) °ÔÀÓ¿À¹ö
-        var flow = FindObjectOfType<GameFlowManager>();
-        if (flow != null)
-            flow.EnterGameOver();
+        // 2) GameOver ì§„ì… (ì‹±ê¸€í†¤ ì‚¬ìš©)
+        if (GameFlowManager.Instance != null)
+        {
+            Debug.Log("[Trap] Entering GameOver via Instance");
+            GameFlowManager.Instance.EnterGameOver();
+        }
+        else
+        {
+            Debug.LogError("[Trap] GameFlowManager.Instance is NULL!");
+        }
 
         Debug.Log("[Trap] Hit -> GameOver");
     }

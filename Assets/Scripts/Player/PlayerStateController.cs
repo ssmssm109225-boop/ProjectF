@@ -1,13 +1,17 @@
 using UnityEngine;
+using System;
 
 [RequireComponent(typeof(SpriteRenderer))]
 public class PlayerStateController : MonoBehaviour
 {
     public enum PlayerState
     {
-        Green, // »óÈ£ÀÛ¿ë
-        Red    // Åë°ú
+        Green, // ì¶©ëŒ íŒì • O
+        Red    // í†µê³¼
     }
+
+    // âœ… ìƒíƒœ ë³€ê²½ ì´ë²¤íŠ¸: Red->Green, Green->Red ì „í™˜ ê°ì§€
+    public event Action<PlayerState, PlayerState> OnStateChanged;
 
     [Header("State")]
     [SerializeField] private PlayerState currentState = PlayerState.Green;
@@ -24,7 +28,7 @@ public class PlayerStateController : MonoBehaviour
 
     private SpriteRenderer sr;
 
-    // ·¹ÀÌ¾î ÀÎµ¦½º Ä³½Ì(¼º´É/¾ÈÁ¤)
+    // ï¿½ï¿½ï¿½Ì¾ï¿½ ï¿½Îµï¿½ï¿½ï¿½ Ä³ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½)
     private int playerLayer;
     private int interactableLayer;
     private int trapLayer;
@@ -37,21 +41,27 @@ public class PlayerStateController : MonoBehaviour
         interactableLayer = LayerMask.NameToLayer(interactableLayerName);
         trapLayer = LayerMask.NameToLayer(trapLayerName);
 
-        // ·¹ÀÌ¾î°¡ ¾øÀ¸¸é -1ÀÌ ³ª¿È. ÇÁ·ÎÅä ´Ü°è¿¡¼­ ½Ç¼ö Àâ±â¿ë ·Î±×.
+        // ï¿½ï¿½ï¿½Ì¾î°¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ -1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ ï¿½Ç¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Î±ï¿½.
         if (playerLayer < 0) Debug.LogError($"[PlayerState] Layer not found: {playerLayerName}");
         if (interactableLayer < 0) Debug.LogError($"[PlayerState] Layer not found: {interactableLayerName}");
         if (trapLayer < 0) Debug.LogError($"[PlayerState] Layer not found: {trapLayerName}");
 
         ApplyVisual();
-        ApplyCollisionRules(); // ½ÃÀÛ »óÅÂ ¹İ¿µ
+        ApplyCollisionRules(); // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½İ¿ï¿½
     }
 
     public void Toggle()
     {
+        PlayerState prevState = currentState;
         currentState = (currentState == PlayerState.Green) ? PlayerState.Red : PlayerState.Green;
+        
         ApplyVisual();
         ApplyCollisionRules();
-        Debug.Log($"[PlayerState] -> {currentState}");
+        
+        // âœ… ìƒíƒœ ë³€ê²½ ì´ë²¤íŠ¸ ë°œìƒ
+        OnStateChanged?.Invoke(currentState, prevState);
+        
+        Debug.Log($"[PlayerState] {prevState} -> {currentState}");
     }
 
     private void ApplyVisual()
@@ -61,8 +71,8 @@ public class PlayerStateController : MonoBehaviour
     }
 
     /// <summary>
-    /// »óÅÂ¿¡ µû¶ó Player vs (Interactable/Trap) Ãæµ¹À» On/Off ÇÑ´Ù.
-    /// Ground´Â °Çµå¸®Áö ¾Ê´Â´Ù.
+    /// ï¿½ï¿½ï¿½Â¿ï¿½ ï¿½ï¿½ï¿½ï¿½ Player vs (Interactable/Trap) ï¿½æµ¹ï¿½ï¿½ On/Off ï¿½Ñ´ï¿½.
+    /// Groundï¿½ï¿½ ï¿½Çµå¸®ï¿½ï¿½ ï¿½Ê´Â´ï¿½.
     /// </summary>
     private void ApplyCollisionRules()
     {
@@ -70,8 +80,8 @@ public class PlayerStateController : MonoBehaviour
 
         bool shouldIgnore = (currentState == PlayerState.Red);
 
-        // Red¸é Åë°ú: Ãæµ¹ ¹«½Ã(true)
-        // GreenÀÌ¸é »óÈ£ÀÛ¿ë: Ãæµ¹ Çã¿ë(false)
+        // Redï¿½ï¿½ ï¿½ï¿½ï¿½: ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½(true)
+        // Greenï¿½Ì¸ï¿½ ï¿½ï¿½È£ï¿½Û¿ï¿½: ï¿½æµ¹ ï¿½ï¿½ï¿½(false)
         if (interactableLayer >= 0)
             Physics2D.IgnoreLayerCollision(playerLayer, interactableLayer, shouldIgnore);
 

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System;
+using UnityEngine.EventSystems;
 
 public class InputRouter : MonoBehaviour
 {
@@ -20,21 +21,39 @@ public class InputRouter : MonoBehaviour
             RouteTap();
         }
     }
+    private bool IsPointerOverUI()
+    {
+        if (EventSystem.current == null) return false;
+
+        // 마우스/에디터
+        if (EventSystem.current.IsPointerOverGameObject())
+            return true;
+
+        // 터치(모바일)
+        if (Input.touchCount > 0)
+        {
+            var t = Input.GetTouch(0);
+            if (EventSystem.current.IsPointerOverGameObject(t.fingerId))
+                return true;
+        }
+        return false;
+    }
 
     private void RouteTap()
     {
+        if (IsPointerOverUI()) return; // ✅ UI 버튼 누를 땐 게임 입력 무시
+
         // 1) 탭 순간 상태 캐싱
         var stateAtTap = gameFlow.CurrentState;
 
-        // 2) 공통 탭 처리 (GameOver에서 Retry 같은 게 여기서 일어남)
-        OnTapAny?.Invoke();
-
-        // ✅ 3) OnTapAny에서 상태가 바뀌었다면, 이 탭은 "소비"된 것
-        // 즉, 같은 탭으로 Ready/Flying 로직이 이어서 실행되면 안 됨
-        if (gameFlow.CurrentState != stateAtTap)
+        // ✅ GameOver 상태에서는 UI 버튼만 사용하도록 제한
+        if (stateAtTap == GameFlowManager.GameState.GameOver)
+        {
+            Debug.Log("[InputRouter] Tap ignored in GameOver (use UI buttons)");
             return;
+        }
 
-        // 4) 상태가 그대로면 분기 처리
+        // 2) Ready/Flying 상태에서만 탭 처리
         switch (stateAtTap)
         {
             case GameFlowManager.GameState.Ready:
