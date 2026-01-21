@@ -8,6 +8,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxPower = 18f;  // 최대 발사 파워
     [SerializeField] private float launchAngleDeg = 35f; // 발사 각도(고정)
 
+    [Header("Revive Launch Settings")]
+    [SerializeField] private float reviveMinPower = 8f;   // 부활 최소 발사 파워
+    [SerializeField] private float reviveMaxPower = 18f;  // 부활 최대 발사 파워
+
     [Header("Debug")]
     [SerializeField] private bool resetVelocityBeforeLaunch = true; // 부활 재발사 대비
 
@@ -18,9 +22,28 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float groundDampingPerSec = 0.08f; // 초당 감쇠량(약하게)
     [SerializeField] private float groundMaxSpeedClamp = 999f;  // 필요시 상한(기본 무제한)
 
+    [Header("Trail (Speed Stages)")]
+    [SerializeField] private TrailRenderer trail;
+    [SerializeField] private PlayerStateController playerState;
+    [SerializeField] private float trailStage2Speed = 4f;
+    [SerializeField] private float trailStage3Speed = 8f;
+    [SerializeField] private float trailStage1Time = 0.05f;
+    [SerializeField] private float trailStage2Time = 0.15f;
+    [SerializeField] private float trailStage3Time = 0.3f;
+    [SerializeField] private float trailStage1Width = 0.08f;
+    [SerializeField] private float trailStage2Width = 0.14f;
+    [SerializeField] private float trailStage3Width = 0.22f;
+    [SerializeField] private Color trailStage1Color = new Color(0.6f, 1f, 0.7f, 0.7f);
+    [SerializeField] private Color trailStage2Color = new Color(0.2f, 1f, 0.4f, 0.85f);
+    [SerializeField] private Color trailStage3Color = new Color(0.2f, 1f, 0.4f, 1f);
+    [SerializeField] private float trailLerpSpeed = 6f;
+
     private Rigidbody2D rb;
     private Vector2 startPos;
     private int groundContactCount = 0;
+    private int currentTrailStage = -1;
+    private PlayerStateController.PlayerState cachedPlayerState = (PlayerStateController.PlayerState)(-1);
+    private static Material trailMaterialCache;
 
     public Vector2 StartPos => startPos;
 
@@ -28,6 +51,67 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         startPos = transform.position;
+        CacheTrailIfNeeded();
+    }
+
+    private void OnEnable()
+    {
+        if (playerState != null)
+            playerState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void OnDisable()
+    {
+        if (playerState != null)
+            playerState.OnStateChanged -= HandleStateChanged;
+    }
+
+    private void Reset()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        CacheTrailIfNeeded();
+    }
+
+    private void OnValidate()
+    {
+        CacheTrailIfNeeded();
+    }
+
+    private void CacheTrailIfNeeded()
+    {
+        if (trail == null)
+            trail = GetComponentInChildren<TrailRenderer>();
+        if (playerState == null)
+            playerState = GetComponent<PlayerStateController>();
+        EnsureTrailMaterial();
+    }
+
+    private void EnsureTrailMaterial()
+    {
+        if (trail == null)
+            return;
+
+        if (trail.sharedMaterial != null && trail.sharedMaterial.shader != null)
+        {
+            if (trail.sharedMaterial.shader.name != "Standard")
+                return;
+        }
+
+        if (trailMaterialCache == null)
+        {
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader == null)
+                shader = Shader.Find("Particles/Standard Unlit");
+
+            if (shader == null)
+                return;
+
+            trailMaterialCache = new Material(shader);
+            trailMaterialCache.name = "Trail_Unlit_Runtime";
+            trailMaterialCache.hideFlags = HideFlags.DontSave;
+        }
+
+        trail.sharedMaterial = trailMaterialCache;
     }
 
     /// <summary>
@@ -35,15 +119,20 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     public void LaunchByGauge01(float v01)
     {
-        LaunchByGauge01Internal(v01, 1f);
+        LaunchByGauge01Internal(v01, 1f, minPower, maxPower);
     }
 
     public void LaunchByGauge01WithMultiplier(float v01, float powerMultiplier)
     {
-        LaunchByGauge01Internal(v01, powerMultiplier);
+        LaunchByGauge01Internal(v01, powerMultiplier, minPower, maxPower);
     }
 
-    private void LaunchByGauge01Internal(float v01, float powerMultiplier)
+    public void LaunchByGauge01ReviveWithMultiplier(float v01, float powerMultiplier)
+    {
+        LaunchByGauge01Internal(v01, powerMultiplier, reviveMinPower, reviveMaxPower);
+    }
+
+    private void LaunchByGauge01Internal(float v01, float powerMultiplier, float minP, float maxP)
     {
 
         v01 = Mathf.Clamp01(v01);
@@ -54,7 +143,7 @@ public class PlayerController : MonoBehaviour
             rb.angularVelocity = 0f;
         }
 
-        float power = Mathf.Lerp(minPower, maxPower, v01) * powerMultiplier;
+        float power = Mathf.Lerp(minP, maxP, v01) * powerMultiplier;
 
         float rad = launchAngleDeg * Mathf.Deg2Rad;
         Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)).normalized;
@@ -117,6 +206,8 @@ public class PlayerController : MonoBehaviour
 
             rb.linearVelocity = v;
         }
+
+        UpdateTrailBySpeed();
     }
     public void Freeze()
     {
@@ -159,6 +250,59 @@ public class PlayerController : MonoBehaviour
         if (dir.x < 0f) dir.x = -dir.x;
 
         rb.linearVelocity = dir * targetSpeed;
+    }
+
+    private void UpdateTrailBySpeed()
+    {
+        if (trail == null)
+            return;
+
+        float speed = rb.linearVelocity.magnitude;
+        int stage;
+        if (speed < trailStage2Speed) stage = 0;
+        else if (speed < trailStage3Speed) stage = 1;
+        else stage = 2;
+
+        Color baseColor = GetBaseTrailColor();
+        bool stateChanged = cachedPlayerState != (playerState != null ? playerState.CurrentState : cachedPlayerState);
+
+        float targetTime = (stage == 0) ? trailStage1Time : (stage == 1 ? trailStage2Time : trailStage3Time);
+        float targetWidth = (stage == 0) ? trailStage1Width : (stage == 1 ? trailStage2Width : trailStage3Width);
+        float targetAlpha = (stage == 0) ? trailStage1Color.a : (stage == 1 ? trailStage2Color.a : trailStage3Color.a);
+
+        trail.time = Mathf.MoveTowards(trail.time, targetTime, trailLerpSpeed * Time.fixedDeltaTime);
+        trail.widthMultiplier = Mathf.MoveTowards(trail.widthMultiplier, targetWidth, trailLerpSpeed * Time.fixedDeltaTime);
+
+        if (stage != currentTrailStage || stateChanged)
+        {
+            currentTrailStage = stage;
+            cachedPlayerState = (playerState != null) ? playerState.CurrentState : cachedPlayerState;
+
+            Color finalColor = new Color(baseColor.r, baseColor.g, baseColor.b, targetAlpha);
+            trail.startColor = finalColor;
+            trail.endColor = new Color(finalColor.r, finalColor.g, finalColor.b, 0f);
+        }
+    }
+
+    private void HandleStateChanged(PlayerStateController.PlayerState newState, PlayerStateController.PlayerState prevState)
+    {
+        cachedPlayerState = newState;
+        if (trail == null)
+            return;
+
+        Color baseColor = GetBaseTrailColor();
+        float targetAlpha = (currentTrailStage == 0) ? trailStage1Color.a : (currentTrailStage == 1 ? trailStage2Color.a : trailStage3Color.a);
+        Color finalColor = new Color(baseColor.r, baseColor.g, baseColor.b, targetAlpha);
+        trail.startColor = finalColor;
+        trail.endColor = new Color(finalColor.r, finalColor.g, finalColor.b, 0f);
+    }
+
+    private Color GetBaseTrailColor()
+    {
+        if (playerState != null)
+            return playerState.GetColorForState(playerState.CurrentState);
+
+        return trailStage2Color;
     }
     private void OnCollisionEnter2D(Collision2D collision)
     {

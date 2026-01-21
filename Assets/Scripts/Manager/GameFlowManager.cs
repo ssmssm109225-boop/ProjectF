@@ -40,8 +40,6 @@ public class GameFlowManager : MonoBehaviour
     private bool isReviveFlowActive = false;
     private bool isReviveInvincibleActive = false;
     private Coroutine reviveInvincibleCoroutine;
-    [SerializeField] private float reviveLaunchImpulseMultiplier = 3f;
-    private float lastLaunchGauge01 = 0f;
 
     public GameState CurrentState => currentState;
 
@@ -138,6 +136,11 @@ public class GameFlowManager : MonoBehaviour
                 if (isReviveInvincibleActive)
                     EndReviveInvincibility();
                 if (launchGauge != null) { launchGauge.SetVisible(false); launchGauge.SetRunning(false); }
+                if (player != null)
+                {
+                    player.SetSimulated(false);
+                    Debug.Log("[GameFlow] Player simulated OFF (GameOver)");
+                }
 
                 // ✅ GameOver 패널 표시 + 부활 가능 여부 전달
                 bool canRevive = allowReviveOnce && !usedReviveThisRun;
@@ -160,7 +163,6 @@ public class GameFlowManager : MonoBehaviour
         if (currentState != GameState.Ready) return;
 
         float v01 = (launchGauge != null) ? launchGauge.Sample01() : 0f;
-        lastLaunchGauge01 = v01;
 
         SetState(GameState.Flying);          // 먼저 물리 ON
         if (player != null)
@@ -210,6 +212,8 @@ public class GameFlowManager : MonoBehaviour
         // 1) 플레이어 리셋
         if (player != null)
             player.ResetRun(cachedStartPos);
+        if (playerState != null)
+            playerState.ResetToGreen();
 
         // 2) 청크 리셋
         if (chunkSpawner != null)
@@ -243,10 +247,6 @@ public class GameFlowManager : MonoBehaviour
             var rb = player.GetComponent<Rigidbody2D>();
             if (rb != null) rb.simulated = true;
         }
-        if (player != null)
-        {
-            player.LaunchByGauge01WithMultiplier(lastLaunchGauge01, reviveLaunchImpulseMultiplier);
-        }
         // ✅ 그 자리에서 발사 게이지 재소환
         SetState(GameState.Ready, resetReviveFlag: false);
     }
@@ -264,7 +264,7 @@ public class GameFlowManager : MonoBehaviour
             redGauge.SetGaugePaused(true);
 
         if (playerState != null)
-            playerState.SetState(PlayerStateController.PlayerState.Red);
+            playerState.SetState(PlayerStateController.PlayerState.Yellow);
 
         if (reviveInvincibleVfx != null)
             reviveInvincibleVfx.Play();
