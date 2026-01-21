@@ -243,6 +243,10 @@ public class GameFlowManager : MonoBehaviour
             var rb = player.GetComponent<Rigidbody2D>();
             if (rb != null) rb.simulated = true;
         }
+        if (player != null)
+        {
+            player.LaunchByGauge01WithMultiplier(lastLaunchGauge01, reviveLaunchImpulseMultiplier);
+        }
         // ✅ 그 자리에서 발사 게이지 재소환
         SetState(GameState.Ready, resetReviveFlag: false);
     }

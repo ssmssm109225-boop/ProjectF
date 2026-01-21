@@ -35,6 +35,17 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     public void LaunchByGauge01(float v01)
     {
+        LaunchByGauge01Internal(v01, 1f);
+    }
+
+    public void LaunchByGauge01WithMultiplier(float v01, float powerMultiplier)
+    {
+        LaunchByGauge01Internal(v01, powerMultiplier);
+    }
+
+    private void LaunchByGauge01Internal(float v01, float powerMultiplier)
+    {
+
         v01 = Mathf.Clamp01(v01);
 
         if (resetVelocityBeforeLaunch)
@@ -43,14 +54,12 @@ public class PlayerController : MonoBehaviour
             rb.angularVelocity = 0f;
         }
 
-        float power = Mathf.Lerp(minPower, maxPower, v01);
+        float power = Mathf.Lerp(minPower, maxPower, v01) * powerMultiplier;
 
         float rad = launchAngleDeg * Mathf.Deg2Rad;
         Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)).normalized;
 
         rb.AddForce(dir * power, ForceMode2D.Impulse);
-
-        Debug.Log($"[Player] Launch v01={v01:0.00}, power={power:0.0}, angle={launchAngleDeg}");
     }
 
     public float GetSpeed()
