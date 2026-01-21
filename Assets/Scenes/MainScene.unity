@@ -1860,7 +1860,7 @@ MonoBehaviour:
   chunkSpawner: {fileID: 1148646429}
   runStats: {fileID: 1142269290}
   movingTrapSpawner: {fileID: 1148646430}
-  redGauge: {fileID: 0}
+  redGauge: {fileID: 966148902}
   currentState: 0
   gameOverUI: {fileID: 761985951}
   allowReviveOnce: 1

@@ -52,15 +52,27 @@ public class PlayerStateController : MonoBehaviour
 
     public void Toggle()
     {
+        SetState((currentState == PlayerState.Green) ? PlayerState.Red : PlayerState.Green);
+    }
+
+    public void SetState(PlayerState newState)
+    {
+        if (currentState == newState)
+            return;
+
         PlayerState prevState = currentState;
         currentState = (currentState == PlayerState.Green) ? PlayerState.Red : PlayerState.Green;
-        
+
+        currentState = newState;
+
         ApplyVisual();
         ApplyCollisionRules();
-        
+
+
         // ✅ 상태 변경 이벤트 발생
         OnStateChanged?.Invoke(currentState, prevState);
-        
+
+
         Debug.Log($"[PlayerState] {prevState} -> {currentState}");
     }
 
@@ -88,4 +100,23 @@ public class PlayerStateController : MonoBehaviour
         if (trapLayer >= 0)
             Physics2D.IgnoreLayerCollision(playerLayer, trapLayer, shouldIgnore);
     }
+    public void ResetToGreen()
+    {
+        if (currentState == PlayerState.Green)
+        {
+            ApplyVisual();
+            ApplyCollisionRules();
+            return;
+        }
+
+        PlayerState prevState = currentState;
+        currentState = PlayerState.Green;
+
+        ApplyVisual();
+        ApplyCollisionRules();
+
+        OnStateChanged?.Invoke(currentState, prevState);
+        Debug.Log($"[PlayerState] {prevState} -> {currentState} (reset)");
+    }
+
 }

@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using System.Collections;
+using UnityEngine;
 
 public class GameFlowManager : MonoBehaviour
 {
@@ -31,7 +33,15 @@ public class GameFlowManager : MonoBehaviour
 
     [Header("Revive (Prototype)")]
     [SerializeField] private bool allowReviveOnce = true;
+    [SerializeField] private float reviveInvincibleDuration = 3f;
+    [SerializeField] private ParticleSystem reviveInvincibleVfx;
+    [SerializeField] private AudioSource reviveInvincibleSfx;
     private bool usedReviveThisRun = false;
+    private bool isReviveFlowActive = false;
+    private bool isReviveInvincibleActive = false;
+    private Coroutine reviveInvincibleCoroutine;
+    [SerializeField] private float reviveLaunchImpulseMultiplier = 3f;
+    private float lastLaunchGauge01 = 0f;
 
     public GameState CurrentState => currentState;
 
@@ -54,16 +64,6 @@ public class GameFlowManager : MonoBehaviour
         // 시작 위치는 1) StartPoint가 있으면 그걸, 2) 없으면 플레이어 현재 위치
         if (playerStartPoint != null) cachedStartPos = playerStartPoint.position;
         else if (player != null) cachedStartPos = player.transform.position;
-
-        // ✅ gameOverUI 자동 할당 (Inspector에서 할당 안 했을 경우)
-        if (gameOverUI == null)
-        {
-            gameOverUI = FindObjectOfType<GameOverPanelUI>();
-            if (gameOverUI != null)
-                Debug.Log("[GameFlowManager] gameOverUI auto-assigned");
-            else
-                Debug.LogWarning("[GameFlowManager] gameOverUI not found in scene!");
-        }
     }
 
 
@@ -94,7 +94,7 @@ public class GameFlowManager : MonoBehaviour
         SetState(GameState.Ready);
     }
 
-    public void SetState(GameState newState)
+    public void SetState(GameState newState, bool resetReviveFlag = true)
     {
         currentState = newState;
         Debug.Log($"[GameFlow] State -> {currentState}");
@@ -103,7 +103,8 @@ public class GameFlowManager : MonoBehaviour
         switch (currentState)
         {
             case GameState.Ready:
-                usedReviveThisRun = false; // ✅ 런 시작 시 부활 가능 초기화
+                if (resetReviveFlag)
+                    usedReviveThisRun = false; // ✅ 런 시작 시 부활 가능 초기화
                 if (player != null)
                 {
                     player.SetSimulated(false);  // ✅ 물리 비활성화 (정지 상태)
@@ -114,7 +115,12 @@ public class GameFlowManager : MonoBehaviour
                     redGauge.OnReadyState();  // ✅ 게이지 리셋 (maxTime으로)
                 }
                 if (gameOverUI != null) gameOverUI.Hide();
-                if (launchGauge != null) { launchGauge.SetVisible(true); launchGauge.SetRunning(true); }
+                if (launchGauge != null)
+                {
+                    launchGauge.SetVisible(true);
+                    launchGauge.SetRunning(true);
+                    launchGauge.ResetGauge();
+                }
                 break;
 
             case GameState.Flying:
@@ -128,6 +134,9 @@ public class GameFlowManager : MonoBehaviour
                 break;
 
             case GameState.GameOver:
+                isReviveFlowActive = false;
+                if (isReviveInvincibleActive)
+                    EndReviveInvincibility();
                 if (launchGauge != null) { launchGauge.SetVisible(false); launchGauge.SetRunning(false); }
 
                 // ✅ GameOver 패널 표시 + 부활 가능 여부 전달
@@ -151,7 +160,7 @@ public class GameFlowManager : MonoBehaviour
         if (currentState != GameState.Ready) return;
 
         float v01 = (launchGauge != null) ? launchGauge.Sample01() : 0f;
-        Debug.Log($"[GameFlow] TapReady Sample01 = {v01:0.00}");
+        lastLaunchGauge01 = v01;
 
         SetState(GameState.Flying);          // 먼저 물리 ON
         if (player != null)
@@ -161,12 +170,21 @@ public class GameFlowManager : MonoBehaviour
 
         // 다음 챕터에서 여기서 Player.Launch(power) 호출할 예정
         SetState(GameState.Flying);
+
+        if (isReviveFlowActive)
+        {
+            isReviveFlowActive = false;
+            StartReviveInvincibleCountdown();
+        }
     }
 
     // Flying 상태에서 탭했을 때 (아직은 로그만)
     private void HandleTapFlying()
     {
         if (currentState != GameState.Flying) return;
+
+        if (isReviveInvincibleActive)
+            return;
 
         if (playerState != null)
             playerState.Toggle();
@@ -214,6 +232,8 @@ public class GameFlowManager : MonoBehaviour
         if (!allowReviveOnce || usedReviveThisRun) return;
 
         usedReviveThisRun = true;
+        isReviveFlowActive = true;
+        BeginReviveInvincibility();
 
         // Trap에서 rb.simulated=false로 꺼놨으면 다시 켜기
         if (player != null)
@@ -223,8 +243,66 @@ public class GameFlowManager : MonoBehaviour
             var rb = player.GetComponent<Rigidbody2D>();
             if (rb != null) rb.simulated = true;
         }
+        // ✅ 그 자리에서 발사 게이지 재소환
+        SetState(GameState.Ready, resetReviveFlag: false);
+    }
+    private void BeginReviveInvincibility()
+    {
+        isReviveInvincibleActive = true;
 
-        // ✅ 일단 Flying으로 복귀 (피버/무적은 나중)
-        SetState(GameState.Flying);
+        if (reviveInvincibleCoroutine != null)
+        {
+            StopCoroutine(reviveInvincibleCoroutine);
+            reviveInvincibleCoroutine = null;
+        }
+
+        if (redGauge != null)
+            redGauge.SetGaugePaused(true);
+
+        if (playerState != null)
+            playerState.SetState(PlayerStateController.PlayerState.Red);
+
+        if (reviveInvincibleVfx != null)
+            reviveInvincibleVfx.Play();
+
+        if (reviveInvincibleSfx != null)
+            reviveInvincibleSfx.Play();
+    }
+
+    private void StartReviveInvincibleCountdown()
+    {
+        if (reviveInvincibleCoroutine != null)
+            StopCoroutine(reviveInvincibleCoroutine);
+
+        reviveInvincibleCoroutine = StartCoroutine(EndReviveInvincibleAfterDelay());
+    }
+
+    private IEnumerator EndReviveInvincibleAfterDelay()
+    {
+        yield return new WaitForSeconds(reviveInvincibleDuration);
+        EndReviveInvincibility();
+    }
+
+    private void EndReviveInvincibility()
+    {
+        isReviveInvincibleActive = false;
+
+        if (redGauge != null)
+            redGauge.SetGaugePaused(false);
+
+        if (playerState != null)
+            playerState.SetState(PlayerStateController.PlayerState.Red);
+
+        if (reviveInvincibleVfx != null)
+            reviveInvincibleVfx.Stop();
+
+        if (reviveInvincibleSfx != null)
+            reviveInvincibleSfx.Stop();
+
+        if (reviveInvincibleCoroutine != null)
+        {
+            StopCoroutine(reviveInvincibleCoroutine);
+            reviveInvincibleCoroutine = null;
+        }
     }
 }

@@ -1,16 +1,16 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 
 public class LaunchGaugeController : MonoBehaviour
 {
     [Header("UI")]
-    [SerializeField] private Slider gaugeSlider; // °ÔÀÌÁö ½½¶óÀÌ´õ
+    [SerializeField] private Slider gaugeSlider; // ê²Œì´ì§€ ìŠ¬ë¼ì´ë”
 
     [Header("Gauge Settings")]
-    [SerializeField, Range(0.1f, 5f)] private float gaugeSpeed = 1.5f; // ¿Õº¹ ¼Óµµ
-    [SerializeField] private bool isRunning = true; // Ready¿¡¼­¸¸ true·Î ÄÓ ¿¹Á¤
+    [SerializeField, Range(0.1f, 5f)] private float gaugeSpeed = 1.5f; // ì™•ë³µ ì†ë„
+    [SerializeField] private bool isRunning = true; // Readyì—ì„œë§Œ trueë¡œ ì¼¤ ì˜ˆì •
 
-    // ³»ºÎ »óÅÂ
+    // ë‚´ë¶€ ìƒíƒœ
     private float value = 0f;   // 0~1
     private int dir = 1;        // +1 / -1
 
@@ -21,7 +21,7 @@ public class LaunchGaugeController : MonoBehaviour
         if (gaugeSlider == null)
             gaugeSlider = GetComponentInChildren<Slider>();
 
-        // ¾ÈÀüÀåÄ¡
+        // ì•ˆì „ì¥ì¹˜
         if (gaugeSlider != null)
         {
             gaugeSlider.minValue = 0f;
@@ -34,7 +34,7 @@ public class LaunchGaugeController : MonoBehaviour
     {
         if (!isRunning) return;
 
-        // ¿Õº¹(Ping-Pong) °ÔÀÌÁö °ª ¾÷µ¥ÀÌÆ®
+        // ì™•ë³µ(Ping-Pong) ê²Œì´ì§€ ê°’ ì—…ë°ì´íŠ¸
         value += dir * gaugeSpeed * Time.deltaTime;
 
         if (value >= 1f)
@@ -53,7 +53,7 @@ public class LaunchGaugeController : MonoBehaviour
     }
 
     /// <summary>
-    /// ÇöÀç °ÔÀÌÁö °ªÀ» »ùÇÃ¸µÇÑ´Ù(0~1).
+    /// í˜„ì¬ ê²Œì´ì§€ ê°’ì„ ìƒ˜í”Œë§í•œë‹¤(0~1).
     /// </summary>
     public float Sample01()
     {
@@ -61,16 +61,21 @@ public class LaunchGaugeController : MonoBehaviour
     }
 
     /// <summary>
-    /// °ÔÀÌÁö µ¿ÀÛ On/Off
+    /// ê²Œì´ì§€ ë™ì‘ On/Off
     /// </summary>
     public void SetRunning(bool running)
     {
         isRunning = running;
     }
 
-    /// <summary>
-    /// °ÔÀÌÁö Ç¥½Ã/¼û±è (Ready¿¡¼­¸¸ º¸ÀÌ°Ô ÇÒ ¶§ »ç¿ë)
-    /// </summary>
+    public void ResetGauge()
+    {
+        value = 0f;
+        dir = 1;
+        if (gaugeSlider != null)
+            gaugeSlider.value = value;
+    }
+
     public void SetVisible(bool visible)
     {
         gameObject.SetActive(visible);

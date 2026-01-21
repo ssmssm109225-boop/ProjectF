@@ -29,6 +29,7 @@ public class RedGaugeController : MonoBehaviour
     // Red→Green 전환 시 스냅 회복 적용 여부 (중복 방지)
     private bool snapRecoveryApplied = false;
     private PlayerStateController.PlayerState prevState;
+    private bool isGaugePaused = false;
 
     public float MaxTime => maxTime;
     public float TimeLeft => timeLeft;
@@ -93,11 +94,19 @@ public class RedGaugeController : MonoBehaviour
     {
         ResetGauge();
     }
+    public void SetGaugePaused(bool paused)
+    {
+        isGaugePaused = paused;
+        Debug.Log($"[RedGauge] Gauge paused = {paused}");
+    }
 
     private void Update()
     {
         // Flying 상태에서만 게이지 동작
         if (gameFlow == null || gameFlow.CurrentState != GameFlowManager.GameState.Flying)
+            return;
+
+        if (isGaugePaused)
             return;
 
         // 현재 상태 확인
