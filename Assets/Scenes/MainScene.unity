@@ -1876,7 +1876,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eeac9da6ba5175547a6917c9ab41972b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RedGaugeController
-  maxTime: 3
+  maxTime: 5
   drainPerSec: 1
   recoverPerSec: 0.5
   snapRecoverSeconds: 1
